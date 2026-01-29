@@ -26,8 +26,13 @@ class _PaginaDesenhoState extends State<PaginaDesenho> {
 
   late String currentPdf;
 
-  // Mapa para guardar os rects de cada posição
-  final Map<int, List<PdfRect>> _posicaoRects = {};
+  // ===== CORREÇÃO: cache de rects por PDF =====
+  final Map<String, Map<int, List<PdfRect>>> _rectsPorPdf = {};
+  Map<int, List<PdfRect>> _rectsAtuais() =>
+      _rectsPorPdf[currentPdf] ??= <int, List<PdfRect>>{};
+
+  // ===== NOVO: histórico de PDFs para voltar ao desenho anterior =====
+  final List<String> _pdfHistory = [];
 
   @override
   void initState() {
@@ -73,80 +78,138 @@ class _PaginaDesenhoState extends State<PaginaDesenho> {
               duration: const Duration(milliseconds: 500),
               transitionBuilder: (child, animation) =>
                   FadeTransition(opacity: animation, child: child),
-              child: PdfViewer.asset(
-                currentPdf,
-                key: ValueKey(currentPdf),
-                controller: _pdfController,
-                params: PdfViewerParams(
-                  linkWidgetBuilder: (context, link, size) {
-                    final uri = link.url;
-                    if (uri != null &&
-                        uri.scheme == 'app' &&
-                        uri.host == 'posicao') {
-                      final seg = uri.pathSegments.isNotEmpty
-                          ? uri.pathSegments.first
-                          : null;
-                      final pos = int.tryParse(seg ?? '');
-                      if (pos != null) {
-                        // guarda os rects dessa posição
-                        _posicaoRects[pos] = link.rects;
+              // ===== ALTERAÇÃO: empacotar o PdfViewer.asset em um Stack para incluir o botão "Voltar" =====
+              child: Stack(
+                children: [
+                  PdfViewer.asset(
+                    currentPdf,
+                    key: ValueKey(currentPdf),
+                    controller: _pdfController,
+                    params: PdfViewerParams(
+                      linkWidgetBuilder: (context, link, size) {
+                        final uri = link.url;
+                        if (uri != null &&
+                            uri.scheme == 'app' &&
+                            uri.host == 'posicao') {
+                          final seg = uri.pathSegments.isNotEmpty
+                              ? uri.pathSegments.first
+                              : null;
+                          final pos = int.tryParse(seg ?? '');
+                          if (pos != null) {
+                            // ===== CORREÇÃO: guardar rects por PDF atual =====
+                            _rectsAtuais()[pos] = List<PdfRect>.from(link.rects);
 
-                        return Tooltip(
-                          message: 'Posição $pos (clique)',
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () async {
-                              final tabela = ProdutoRepository.tabela;
-                              final produto = tabela.firstWhere(
-                                  (p) => p.posicao == pos,
-                                  orElse: () => Produto.vazio());
+                            return Tooltip(
+                              message: 'Posição $pos (clique)',
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onTap: () async {
+                                  // ===== NOVO: checar se existe item com essa posição no currentPdf =====
+                                  final possiveis = ProdutoRepository.tabela
+                                      .where((p) =>
+                                          p.arquivo == currentPdf &&
+                                          p.posicao == pos)
+                                      .toList();
 
-                              setState(() {
-                                selecionado = produto;
-                              });
-
-                              if (produto.unidade_medida == 'CJ') {
-                                final abrir = await showDialog<bool>(
-                                  context: context,
-                                  builder: (ctx) => AlertDialog(
-                                    title: Text(
-                                        'Abrir desenho do item ${produto.texto_breve}?'),
-                                    content: Text(
-                                        'Este item é um conjunto (CJ). Deseja abrir o Desenho ${produto.desenho} para ver os detalhes do conjunto?'),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.of(ctx).pop(false),
-                                        child: const Text('Não'),
+                                  if (possiveis.isEmpty) {
+                                    // Mensagem padrão solicitada
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Não há na lista técnica um item com a posição $pos nesse desenho.',
+                                        ),
                                       ),
-                                      ElevatedButton(
-                                        onPressed: () =>
-                                            Navigator.of(ctx).pop(true),
-                                        child: const Text('Sim'),
-                                      ),
-                                    ],
-                                  ),
-                                );
+                                    );
+                                    return;
+                                  }
 
-                                if (abrir == true) {
+                                  // ===== CORREÇÃO: buscar produto filtrando pelo currentPdf =====
+                                  final produto = possiveis.first;
+
                                   setState(() {
-                                    currentPdf = '${produto.desenho}.pdf';
+                                    selecionado = produto;
                                   });
-                                } else {
-                                  await _zoomLeveNoLink(link.rects);
-                                }
-                              } else {
-                                await _zoomLeveNoLink(link.rects);
+
+                                  if (produto.unidade_medida == 'CJ') {
+                                    final abrir = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: Text(
+                                            'Abrir desenho do item ${produto.texto_breve}?'),
+                                        content: Text(
+                                            'Este item é um conjunto (CJ). Deseja abrir o Desenho ${produto.desenho} para ver os detalhes do conjunto?'),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () =>
+                                                Navigator.of(ctx).pop(false),
+                                            child: const Text('Não'),
+                                          ),
+                                          ElevatedButton(
+                                            onPressed: () =>
+                                                Navigator.of(ctx).pop(true),
+                                            child: const Text('Sim'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+
+                                    if (abrir == true) {
+                                      setState(() {
+                                        // ===== NOVO: empilhar o PDF atual antes de navegar =====
+                                        _pdfHistory.add(currentPdf);
+                                        currentPdf = '${produto.desenho}.pdf';
+                                        // Zera seleção ao trocar de PDF (evita estado antigo)
+                                        selecionado = null;
+                                      });
+                                    } else {
+                                      await _zoomLeveNoLink(link.rects);
+                                    }
+                                  } else {
+                                    await _zoomLeveNoLink(link.rects);
+                                  }
+                                },
+                                child: const SizedBox.expand(),
+                              ),
+                            );
+                          }
+                        }
+                        return null;
+                      },
+                    ),
+                  ),
+
+                  // ===== NOVO: Botão "Voltar" ao desenho anterior =====
+                  if (_pdfHistory.isNotEmpty)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: Tooltip(
+                          message: 'Voltar ao desenho anterior',
+                          child: ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 8),
+                              elevation: 2,
+                              minimumSize: const Size(0, 0),
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
+                            icon: const Icon(Icons.arrow_back),
+                            label: const Text('Voltar'),
+                            onPressed: () {
+                              if (_pdfHistory.isNotEmpty) {
+                                setState(() {
+                                  currentPdf = _pdfHistory.removeLast();
+                                  selecionado = null;
+                                });
                               }
                             },
-                            child: const SizedBox.expand(),
                           ),
-                        );
-                      }
-                    }
-                    return null;
-                  },
-                ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
           ),
@@ -201,11 +264,15 @@ class _PaginaDesenhoState extends State<PaginaDesenho> {
 
                       if (abrir == true) {
                         setState(() {
+                          // ===== NOVO: empilhar o PDF atual antes de navegar =====
+                          _pdfHistory.add(currentPdf);
                           currentPdf = '${item.desenho}.pdf';
+                          // Zera seleção ao trocar de PDF (evita estado antigo)
+                          selecionado = null;
                         });
                       } else {
-                        // usa os rects guardados
-                        final rects = _posicaoRects[item.posicao];
+                        // ===== CORREÇÃO: usar rects do PDF atual =====
+                        final rects = _rectsAtuais()[item.posicao];
                         if (rects != null) {
                           await _zoomLeveNoLink(rects);
                         } else {
@@ -213,7 +280,8 @@ class _PaginaDesenhoState extends State<PaginaDesenho> {
                         }
                       }
                     } else {
-                      final rects = _posicaoRects[item.posicao];
+                      // ===== CORREÇÃO: usar rects do PDF atual =====
+                      final rects = _rectsAtuais()[item.posicao];
                       if (rects != null) {
                         await _zoomLeveNoLink(rects);
                       } else {
