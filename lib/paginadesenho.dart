@@ -110,9 +110,9 @@ class _PaginaDesenhoState extends State<PaginaDesenho> {
                                   context: context,
                                   builder: (ctx) => AlertDialog(
                                     title: Text(
-                                        'Abrir desenho da posição ${produto.posicao}?'),
+                                        'Abrir desenho do item ${produto.texto_breve}?'),
                                     content: Text(
-                                        'Este item é um conjunto (CJ). Deseja abrir o arquivo ${produto.posicao}.pdf?'),
+                                        'Este item é um conjunto (CJ). Deseja abrir o Desenho ${produto.desenho} para ver os detalhes do conjunto?'),
                                     actions: [
                                       TextButton(
                                         onPressed: () =>
@@ -130,7 +130,7 @@ class _PaginaDesenhoState extends State<PaginaDesenho> {
 
                                 if (abrir == true) {
                                   setState(() {
-                                    currentPdf = '${produto.posicao}.pdf';
+                                    currentPdf = '${produto.desenho}.pdf';
                                   });
                                 } else {
                                   await _zoomLeveNoLink(link.rects);
@@ -183,9 +183,9 @@ class _PaginaDesenhoState extends State<PaginaDesenho> {
                       final abrir = await showDialog<bool>(
                         context: context,
                         builder: (ctx) => AlertDialog(
-                          title: Text('Abrir desenho da posição ${item.posicao}?'),
+                          title: Text('Abrir desenho da posição ${item.arquivo}?'),
                           content: Text(
-                              'Este item é um conjunto (CJ). Deseja abrir o arquivo ${item.posicao}.pdf?'),
+                              'Este item é um conjunto (CJ). Deseja abrir o Desenho ${item.desenho} para ver os detalhes do conjunto?'),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.of(ctx).pop(false),
@@ -201,7 +201,7 @@ class _PaginaDesenhoState extends State<PaginaDesenho> {
 
                       if (abrir == true) {
                         setState(() {
-                          currentPdf = '${item.posicao}.pdf';
+                          currentPdf = '${item.desenho}.pdf';
                         });
                       } else {
                         // usa os rects guardados
