@@ -20,4 +20,20 @@ class Produto {
     required this.quantidadade_estoque,
     required this.unidade_medida
   });
+
+
+  factory Produto.vazio() {
+    return Produto(
+      posicao: -1,
+      texto_breve: '',
+      desenho: '',
+      quantidade_lista: 0,
+      quantidadade_estoque: 0,
+      code_stock: 0,
+      unidade_medida: '',
+      arquivo: '',
+      pagina: 0
+    );
+  }
+
 }
