@@ -234,88 +234,12 @@ class _PaginaDesenhoState extends State<PaginaDesenho> {
                 final isSelected = selecionado == item;
 
                 return ListTile(
-                  // === ALTERAÇÃO 1: título em negrito + sublinhado quando CJ ===
-                  title: Text(
-                    item.texto_breve,
-                    style: item.unidade_medida == 'CJ'
-                        ? const TextStyle(
-                            fontWeight: FontWeight.bold,
-                          )
-                        : null,
+                  title: Text(item.texto_breve),
+                  subtitle: Text(
+                    "Posição: ${item.posicao} | Qtde: ${item.quantidade_lista} | "
+                    "Estoque: ${item.quantidadade_estoque} | Code Stock: ${item.code_stock} | "
+                    "Unidade: ${item.unidade_medida} | Arquivo: ${item.arquivo}",
                   ),
-
-                  // === ALTERAÇÃO 2: rótulos do subtitle em negrito e coloridos, valores normais ===
-                  subtitle: RichText(
-                    text: TextSpan(
-                      style: DefaultTextStyle.of(context).style,
-                      children: [
-                        TextSpan(
-                          text: 'Posição: ',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                        TextSpan(text: '${item.posicao}'),
-
-                        const TextSpan(text: ' | '),
-
-                        TextSpan(
-                          text: 'Qtde: ',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                        TextSpan(text: '${item.quantidade_lista}'),
-
-                        const TextSpan(text: ' | '),
-
-                        TextSpan(
-                          text: 'Estoque: ',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                        TextSpan(text: '${item.quantidadade_estoque}'),
-
-                        const TextSpan(text: ' | '),
-
-                        TextSpan(
-                          text: 'Code Stock: ',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                        TextSpan(text: '${item.code_stock}'),
-
-                        const TextSpan(text: ' | '),
-
-                        TextSpan(
-                          text: 'Unidade: ',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                        TextSpan(text: '${item.unidade_medida}'),
-
-                        const TextSpan(text: ' | '),
-
-                        TextSpan(
-                          text: 'Arquivo: ',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Theme.of(context).colorScheme.primary,
-                          ),
-                        ),
-                        TextSpan(text: '${item.arquivo}'),
-                      ],
-                    ),
-                  ),
-
                   trailing: const Icon(Icons.shopping_cart),
                   selected: isSelected,
                   selectedTileColor: Colors.indigo[50],
